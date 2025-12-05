@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>In-House Inventory Tracker</title>
+  <style>
+    /* ========= THEME VARIABLES ========= */
+    :root{
+      --bg:#0f1115; --card:#171a21; --muted:#9aa3b2; --text:#e6e9ef; --line:#232839;
+      --good:#86efac; --warn:#fde68a; --bad:#fca5a5;
+      --input:#0d0f14; --btn:#111827; --btnText:#e6e9ef; --accent:#0ea5e9; --accentText:#001018;
+    }
+    html[data-theme="light"]{
+      --bg:#f6f7fb; --card:#ffffff; --muted:#5b6474; --text:#0b1220; --line:#e5e7ef;
+      --good:#16a34a; --warn:#b45309; --bad:#dc2626;
+      --input:#ffffff; --btn:#f1f5f9; --btnText:#0b1220; --accent:#2563eb; --accentText:#ffffff;
+    }
+
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+    header{padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+    h1{margin:0 0 6px;font-size:18px;font-weight:700;}
+    .sub{color:var(--muted);font-size:12px}
+    main{padding:16px 20px;display:grid;gap:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .spacer{flex:1 1 auto}
+
+    input,select{
+      background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 8px;font-size:13px;outline:none;
+    }
+    input::placeholder{color:#667085}
+
+    button{
+      background:var(--btn);color:var(--btnText);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;
+      transition:.15s transform,.15s border-color;
+    }
+    button:hover{transform:translateY(-1px);border-color:#94a3b8}
+    button.primary{background:linear-gradient(180deg,var(--accent),#0284c7);border-color:var(--accent);color:var(--accentText);font-weight:700}
+    button.warn{background:color-mix(in oklab, var(--warn) 30%, var(--btn));border-color:color-mix(in oklab, var(--warn) 60%, var(--line));}
+    button.bad{background:color-mix(in oklab, var(--bad) 25%, var(--btn));border-color:color-mix(in oklab, var(--bad) 60%, var(--line));}
+    button.tinybtn{padding:4px 6px;font-size:11px;border-radius:6px}
+
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th{color:var(--muted);font-weight:600;text-align:left;font-size:12px;padding:0 8px;white-space:nowrap;}
+    td{background:var(--input);border:1px solid var(--line);padding:8px;border-right:0;border-left:0}
+    td:first-child{border-left:1px solid var(--line);border-top-left-radius:9px;border-bottom-left-radius:9px}
+    td:last-child{border-right:1px solid var(--line);border-top-right-radius:9px;border-bottom-right-radius:9px}
+
+    .pill{font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+    .badge-low{color:var(--accentText);background:var(--warn);font-weight:700;border:0}
+    .badge-out{color:var(--accentText);background:var(--bad);font-weight:700;border:0}
+    .badge-ok{color:var(--accentText);background:var(--good);font-weight:700;border:0}
+
+    .tiny{font-size:11px;color:var(--muted)}
+    .nowrap{white-space:nowrap}
+    a.buy{color:var(--accentText);background:var(--accent);padding:4px 8px;border-radius:6px;text-decoration:none;font-weight:700;font-size:12px;display:inline-block}
+    a.buy:hover{opacity:.9}
+  </style>
+</head>
+<body>
+<header>
+  <h1>In-House Inventory Tracker</h1>
+  <div class="sub">
+    Preloaded from BH orders + Amazon batch. Qty is yours to maintain.
+    Vendor & Category are dropdowns with addable values.
+    Purchase links auto-generate per vendor (and can be overridden).
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="row">
+      <!-- Search -->
+      <input id="searchInput" placeholder="Search SKU, item, category, vendor..." style="flex:1;min-width:220px">
+
+      <!-- Filters -->
+      <label class="tiny">Vendor</label>
+      <select id="vendorFilter" style="width:160px"></select>
+
+      <label class="tiny">Category</label>
+      <select id="categoryFilter" style="width:160px"></select>
+
+      <label class="tiny">On-hand</label>
+      <select id="onHandFilter" style="width:150px">
+        <option value="all">All</option>
+        <option value="in">In Stock</option>
+        <option value="low">Low</option>
+        <option value="out">Out</option>
+        <option value="unknown">Unknown</option>
+      </select>
+
+      <label class="tiny">Low-stock threshold</label>
+      <input id="lowStockInput" type="number" value="1" style="width:70px">
+
+      <div class="spacer"></div>
+
+      <!-- Add Row -->
+      <button class="primary" id="addRowBtn">+ Add New Item</button>
+
+      <!-- Theme toggle -->
+      <button id="themeToggleBtn">🌙 Dark</button>
+
+      <button class="warn" id="saveBtn">Save (Local)</button>
+      <button id="exportCsvBtn">Export CSV</button>
+      <button class="primary" id="downloadHtmlBtn">Download HTML w/ Data</button>
+      <button class="bad" id="resetBtn">Reset All</button>
+    </div>
+    <div class="tiny" id="countLabel" style="margin-top:6px;"></div>
+  </section>
+
+  <section class="card">
+    <div style="overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Item</th>
+            <th>Category</th>
+            <th>Vendor</th>
+            <th>Purchase</th>
+            <th>Qty On-Hand</th>
+            <th>Notes</th>
+            <th>Last Order</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+/** =========================
+ *  PRELOADED ITEMS
+ *  ========================= */
+let inventory = [
+  // ===== BH PHOTO ITEMS =====
+  { sku: "UBSWULTRA60W", name: "Ubiquiti Ultra 60W 8-Port Gigabit PoE+ Compliant Managed Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-17", purchaseUrl:"" },
+  { sku: "MS5060T16V2P", name: "MSI GeForce RTX 5060 Ti 16GB VENTUS 2X PLUS 16G Graphics Card", category: "GPU", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-13", purchaseUrl:"" },
+  { sku: "MSG56T16V2CP", name: "MSI GeForce RTX 5060 Ti 16GB VENTUS 2X OC PLUS Graphics Card", category: "GPU", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-06-16", purchaseUrl:"" },
+
+  { sku: "UBUSWFLEX", name: "Ubiquiti UniFi Switch Flex 5-Port Managed Gigabit PoE Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-11", purchaseUrl:"" },
+  { sku: "UBSPROMAX48P", name: "Ubiquiti Pro Max 48 PoE 48-Port 2.5G / 1G PoE++ Compliant Managed Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-11", purchaseUrl:"" },
+  { sku: "UBUSW48POE", name: "Ubiquiti UniFi 48-Port Gigabit PoE+ Compliant Managed Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-07", purchaseUrl:"" },
+  { sku: "UBSLITE8POE", name: "Ubiquiti UniFi Lite 8-Port Gigabit PoE+ Compliant Managed Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-09-16", purchaseUrl:"" },
+  { sku: "UBU6MESHUS", name: "Ubiquiti U6-Mesh-US Wireless Dual-Band Wi-Fi 6 Mesh Outdoor Access Point", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-09-16", purchaseUrl:"" },
+  { sku: "UBUSWFL25G8P", name: "Ubiquiti Flex 2.5G PoE 8-Port PoE++ Compliant Managed Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-09-12", purchaseUrl:"" },
+  { sku: "UBUCGMAX", name: "Ubiquiti Cloud Gateway Max", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-08-27", purchaseUrl:"" },
+  { sku: "UBUDMPRO", name: "Ubiquiti UniFi Dream Machine Pro", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-08-06", purchaseUrl:"" },
+  { sku: "UBU7PROUS", name: "Ubiquiti UniFi U7 Pro Tri-Band Wi-Fi 7 Access Point", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-08-04", purchaseUrl:"" },
+  { sku: "UBU7PROWALL", name: "Ubiquiti UniFi U7 Pro Wall Tri-Band Wi-Fi 7 Access Point", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-07-14", purchaseUrl:"" },
+  { sku: "UBU7PROMAX", name: "Ubiquiti UniFi U7 Pro Max Tri-Band Wi-Fi 7 Access Point", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-06-04", purchaseUrl:"" },
+  { sku: "UBSPROMAX16P", name: "Ubiquiti Pro Max 16 PoE 16-Port 2.5G / 1G Managed Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-07-01", purchaseUrl:"" },
+  { sku: "UBSPROMAX24P", name: "Ubiquiti Pro Max 24 PoE 24-Port 2.5G / 1G PoE++ Compliant Managed Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-06-04", purchaseUrl:"" },
+  { sku: "UBUSW24POE", name: "Ubiquiti UniFi 24-Port Gigabit PoE+ Compliant Managed Switch with SFP", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-06-04", purchaseUrl:"" },
+
+  { sku: "HI2047G2LU28", name: "Hikvision ColorVu DS-2CD2047G2-LU 4MP Outdoor Network Bullet Camera (2.8mm)", category: "Camera", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-08-14", purchaseUrl:"" },
+  { sku: "HI2543G2IS28", name: "Hikvision AcuSense DS-2CD2543G2-IS 4MP Outdoor Network Mini Dome Camera (White)", category: "Camera", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-07-01", purchaseUrl:"" },
+  { sku: "HI2747G2TLZS", name: "Hikvision ColorVu DS-2CD2747G2T-LZS 4MP Outdoor Network Dome Camera", category: "Camera", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-07-01", purchaseUrl:"" },
+  { sku: "HIC2683G2IZS", name: "Hikvision AcuSense DS-2CD2683G2-IZS 8MP Outdoor Network Bullet Camera", category: "Camera", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-05-23", purchaseUrl:"" },
+  { sku: "HI543G2IS28B", name: "Hikvision AcuSense DS-2CD2543G2-IS 4MP Outdoor Network Mini Dome Camera (Black)", category: "Camera", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-04-29", purchaseUrl:"" },
+
+  { sku: "UBU6PROUS", name: "Ubiquiti WiFi 6 Pro Dual-Band Access Point", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-04-23", purchaseUrl:"" },
+  { sku: "ASUX8MAPS99T", name: "ASUS 14\" Zenbook DUO UX8406 Multi-Touch Notebook", category: "Laptop", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-02-06", purchaseUrl:"" },
+  { sku: "EPPV19II", name: "Epson Perfection V19 II Color Photo and Document Flatbed Scanner", category: "Scanner", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-01-29", purchaseUrl:"" },
+
+  // ===== AMAZON ITEMS (default vendor Amazon) =====
+  { sku: "AMZ-CAT6-FLAT-25FT", name: "Cat6 cable (flat 25 ft)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CAT6-FLAT-50FT", name: "Cat6 cable (flat 50 ft)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CAT6-ROUND-MISC", name: "Cat6 cables (round, small, unspecified size)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-POE-WHT", name: "UniFi PoE adapters (white)", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-POE-BLK", name: "UniFi PoE adapters (black)", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-SURGE", name: "UniFi Ethernet surge protectors", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB3-A-MICROB-3FT", name: "Cable Matters 3 ft USB 3.0 A to Micro B cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-PC-POWER-CABLES", name: "PC power cables (varying lengths)", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-MOUSE-GEN1", name: "Mouse", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-VGA-CABLE", name: "VGA cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-A-USB-B", name: "USB A to USB B cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-DP-VGA-ADAPT", name: "Moread DP to VGA adapters", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-MINI-DP-DP-ADAPT", name: "Moread Mini Display to DP adapters", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CAT6-RJ45-KEYSTONE", name: "Cat6 RJ45 Keystone Jack", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-HDMI-ADAPT", name: "USB to HDMI adapters", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-C-DP-CABLE", name: "Uni USB-C to DP cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-VGA-CABLE", name: "USB to VGA cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-HDMI-CABLE", name: "USB to HDMI cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-VGA-DVI-CABLE", name: "VGA to DVI cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-HDMI-MISC", name: "USB to HDMI", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-HDMI-VGA", name: "HDMI to VGA", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-C-USB-A-CHG", name: "USB-C to USB-A charging cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-HDMI-4K-6FT-5PK", name: "4K HDMI cable 6 ft (5-pack)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-DP-CABLE", name: "DP cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-DP-CABLE-10FT", name: "DP cable (10 ft)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-CHA-CABLES", name: "USB to CHA cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-VGA-DVI-ADAPT", name: "VGA to DVI adapter", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-G4-POE-USB-7M", name: "UniFi G4 Doorbell Pro PoE to USB cable (7m)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-HDMI-CABLES-MISC", name: "HDMI cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-A-USB-C-CHG", name: "USB-A to USB-C charging cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-CKG2", name: "UniFi Cloud Key Gen 2", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-UDMPRO", name: "UniFi Dream Machine Professional", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-CGMAX", name: "UniFi Cloud Gateway Max", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-G3-FLEX", name: "UniFi G3 Flex", category: "Camera", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-60GHZ-BRIDGE", name: "UniFi 60 GHz Gigabit+ Wireless Bridge Kit", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-NSTATION-LOCO", name: "UniFi Anno Station AC Loco", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-NANOBEAM-5AC", name: "UniFi Nano Beam 5AC", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-COUPLER-RJ45-BLUE-3PK", name: "Allsmartlife Cat6 RJ45 Jack In-Line Coupler (3-pack, blue)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-COAX-GENDER-CHG-11PK", name: "VCE 3 Coaxial Gender Changer (11-pack)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-COAX-GENDER-CHG-16PK", name: "Coax Gender Changers (16-pack)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-DUCT-TAPE", name: "Duct Tape Rolls", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-2PORT-KEYSTONE-SURFACE-3PK", name: "2-Port Keystone Jack Surface Mounts (3-pack)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ETH-WALL-MOUNT-PLATES", name: "Ethernet Wall Mount Plates", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-24-POE", name: "UniFi 24 PoE", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-LITE-16-POE", name: "UniFi Lite 16 PoE", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-LITE-8-POE", name: "UniFi Lite 8 PoE", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-NETGEAR-16G-UNM", name: "Netgear 16-Port Gigabit Ethernet Unmanaged Switch", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-NETGEAR-8G-POE-UNM", name: "Netgear 8-Port Gigabit Ethernet PoE+ Unmanaged Switch", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-NETGEAR-8G-UNM", name: "Netgear 8-Port Gigabit Ethernet Unmanaged Switch", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ZYXEL-SWITCH", name: "Zyxel Ethernet Switch", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-SONICWALL-TZ270", name: "SonicWall TZ270", category:"Security", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CAT6-100FT-BOX", name: "Cat6 (100 ft, box)", category:"Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CP-LCD-UPS", name: "CyberPower Intelligent LCD UPS", category:"Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CP-360W-BBU", name: "CyberPower 360W Battery Backup with Surge Protection", category:"Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-TESTEI-12OUT-USB", name: "Testei 12-Outlet Power Strip with 4 USB Ports", category:"Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ADDTAM-5OUT-3USB-2PK", name: "Addtam 5-Outlet + 3 USB Surge Protector (2-pack)", category:"Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-TESSA-PS-15W", name: "Tessa’s Power Strip 15W", category:"Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-MEDIAGEAR-USB-C-DOCK", name: "Mediagear USB-C PD Universal Dock", category:"Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ARRIS-SB-DOCSIS31", name: "Arris Surfboard DOCSIS 3.1 Cable Modem", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-CABLE-INTERNET", name: "UniFi Cable Internet", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-RJ45-JEWELS-200CT", name: "Cat6 RJ45 Jewels (200 ct, Cable Matters)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-COAX-STAPLES-200CT", name: "Gardner Bender 1/4” Coaxial Cable Staples (200 ct)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-TOGGLE-BOLTS-50CT", name: "Cully 3/16 3” Toggle Bolts (50 ct)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CABLE-STAPLES-400CT", name: "Buchanan Cable Staples (1/2” x 1 3/16”, 400 ct)", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-5V2A-ADAPTER", name: "5V2A Power Adapter Supply", category:"Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-LOGI-C920X", name: "Logitech C920x Pro HD Webcam", category:"Audio/Video", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-JOUNIVO-MICS", name: "Jounivo Microphones", category:"Audio/Video", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CM-48PORT-PATCH-2U", name: "Cable Matters RJ45 110 Type 48-Port Cat6 2U Patch Panel", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-SERENITE-POOL-HOUSE-BOXES", name: "Serenite Pool House Boxes", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CM-KEYSTONE-PANEL-2U", name: "Cable Matters 2U 48-Port Keystone Patch Panel", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CABLE-COVERS", name: "Cable Covers", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-SIP-T57W", name: "Prime Business Phone SIP-T57W", category:"Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB2-KIT", name: "Universal USB 2.0 Cable Kit", category:"Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-D12-MTX-ANT-ASSEMBLY", name: "D12 MTX Pick Antenna Assembly", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-HUB-10PORT", name: "USB Hub with Individual Power (10 USB 3.0 Ports + 1 Charging Port)", category:"Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-OEM-KEYBOARDS", name: "Generic OEM Keyboards", category:"Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-MOUSE-GEN2", name: "Mouse", category:"Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-BROTHER-TN450", name: "Brother TN450", category:"Printing", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-SEAGATE-CHEETAH-15K7", name: "Seagate Cheetah 15k.7", category:"Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-KINGSTON-NV3-1TB", name: "Kingston NV3 1 TB PCIe 4.0 NVMe M.2", category:"Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-SP-A55-1TB", name: "SP A55 1 TB SSD", category:"Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-AX900-USB-DONGLE", name: "AX900 Wi-Fi 6 USB Dongle", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-FLASH-64GB", name: "USB Flash Drives 64 GB", category:"Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-TPLINK-T3U", name: "TP-Link AC1300 Archer T3U Wireless USB Adapter", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-AC600-BT-WIFI-DONGLE", name: "BT + Wi-Fi 5 AC600 Driver-Free Dongle", category:"Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-MINI-PORTABLE-PRINTER", name: "Mini Portable Printer", category:"Printing", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ELEC-DISINFECT-SPRAY", name: "Electronics Disinfectant Spray", category:"Hardware & Install", vendor:"Amazon", qty:"", notes:"consumable", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-WD-PASSPORT-6TB", name: "WD My Passport 6 TB Portable HDD", category:"Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" }
+];
+
+/** ===== Lists ===== */
+let vendors = ["BH Photo","Amazon","Microsoft","CDW","New Egg","Tiger Direct","D and H"];
+let categories = [
+  "Networking","GPU","Camera","Laptop","Scanner",
+  "Cabling","Adapters","Peripherals","Power","Storage",
+  "Hardware & Install","Printing","Security","Audio/Video"
+];
+
+/** ===== Storage keys ===== */
+const STORAGE_KEY_ITEMS      = "bhinv_items_v7";
+const STORAGE_KEY_VENDORS    = "bhinv_vendors_v7";
+const STORAGE_KEY_CATEGORIES = "bhinv_categories_v7";
+const STORAGE_KEY_THEME      = "bhinv_theme_v7";
+
+const $ = (id)=>document.getElementById(id);
+const norm = (s)=> (s||"").toString().toLowerCase().trim();
+
+/** Stable IDs */
+function ensureIds(){
+  inventory = inventory.map(it=>{
+    if(it._id) return it;
+    const salt = Math.random().toString(36).slice(2,8);
+    return {...it, _id: `${it.sku||"item"}-${salt}`};
+  });
+}
+
+/** Load saved inventory + lists */
+function loadLocal(){
+  try{
+    const vraw = localStorage.getItem(STORAGE_KEY_VENDORS);
+    if(vraw){ vendors = JSON.parse(vraw) || vendors; }
+  }catch(e){}
+
+  try{
+    const craw = localStorage.getItem(STORAGE_KEY_CATEGORIES);
+    if(craw){ categories = JSON.parse(craw) || categories; }
+  }catch(e){}
+
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY_ITEMS);
+    if(raw){
+      const saved = JSON.parse(raw)||[];
+      const byId = new Map(saved.map(x=>[x._id, x]));
+      inventory = inventory.map(it => byId.get(it._id) ? {...it, ...byId.get(it._id)} : it);
+    }
+  }catch(e){}
+
+  inventory.forEach(it=>{
+    if(it.category && !categories.some(c=>norm(c)===norm(it.category))){
+      categories.push(it.category);
+    }
+    if(it.vendor && !vendors.some(v=>norm(v)===norm(it.vendor))){
+      vendors.push(it.vendor);
+    }
+  });
+}
+
+/** Theme */
+function loadTheme(){
+  const t = localStorage.getItem(STORAGE_KEY_THEME) || "dark";
+  document.documentElement.setAttribute("data-theme", t);
+  updateThemeButton();
+}
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem(STORAGE_KEY_THEME, next);
+  updateThemeButton();
+}
+function updateThemeButton(){
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  $("themeToggleBtn").textContent = cur === "dark" ? "🌙 Dark" : "☀️ Light";
+}
+
+function saveLocal(renderAfter=false){
+  localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(inventory));
+  localStorage.setItem(STORAGE_KEY_VENDORS, JSON.stringify(vendors));
+  localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(categories));
+  if(renderAfter) { buildFilterOptions(); render(); }
+}
+
+/** Auto purchase URL builder */
+function getPurchaseUrl(it){
+  if(it.purchaseUrl && it.purchaseUrl.trim()) return it.purchaseUrl.trim();
+  const q = encodeURIComponent(it.sku || it.name || "");
+  const v = norm(it.vendor);
+  if(v.includes("bh"))          return `https://www.bhphotovideo.com/c/search?Ntt=${q}`;
+  if(v.includes("amazon"))      return `https://www.amazon.com/s?k=${q}`;
+  if(v.includes("microsoft"))   return `https://www.microsoft.com/en-us/search/shop?q=${q}`;
+  if(v.includes("cdw"))         return `https://www.cdw.com/search/?key=${q}`;
+  if(v.includes("new egg") || v.includes("newegg"))
+                               return `https://www.newegg.com/p/pl?d=${q}`;
+  if(v.includes("tiger"))       return `https://www.tigerdirect.com/applications/SearchTools/search.asp?keywords=${q}`;
+  if(v.includes("d and h") || v.includes("d&h") || v.includes("dandh"))
+                               return `https://www.dandh.com/search?q=${q}`;
+  const fallback = encodeURIComponent(`${it.vendor||"vendor"} ${it.sku||""} ${it.name||""}`);
+  return `https://www.google.com/search?q=${fallback}`;
+}
+
+function stockBadge(qty){
+  const low = Number($("lowStockInput").value || 1);
+  const n = Number(qty);
+  if(qty==="" || isNaN(n)) return `<span class="pill">—</span>`;
+  if(n <= 0) return `<span class="pill badge-out">OUT</span>`;
+  if(n <= low) return `<span class="pill badge-low">LOW</span>`;
+  return `<span class="pill badge-ok">OK</span>`;
+}
+
+function vendorOptions(selected){
+  const opts = vendors.map(v=>{
+    const sel = (v===selected) ? "selected" : "";
+    return `<option value="${v}" ${sel}>${v}</option>`;
+  }).join("");
+  return opts + `<option value="__add_vendor__">+ Add vendor...</option>`;
+}
+
+function categoryOptions(selected){
+  const opts = categories.map(c=>{
+    const sel = (c===selected) ? "selected" : "";
+    return `<option value="${c}" ${sel}>${c}</option>`;
+  }).join("");
+  return opts + `<option value="__add_category__">+ Add category...</option>`;
+}
+
+/** Filter option builders */
+function buildFilterOptions(){
+  const vSel = $("vendorFilter").value || "all";
+  const cSel = $("categoryFilter").value || "all";
+
+  $("vendorFilter").innerHTML =
+    `<option value="all">All</option>` +
+    vendors.map(v=>`<option value="${v}">${v}</option>`).join("");
+
+  $("categoryFilter").innerHTML =
+    `<option value="all">All</option>` +
+    categories.map(c=>`<option value="${c}">${c}</option>`).join("");
+
+  $("vendorFilter").value = vSel;
+  $("categoryFilter").value = cSel;
+}
+
+function addVendorFlow(selectEl){
+  const nv = prompt("Enter new vendor name:");
+  if(!nv) { selectEl.value = (inventory.find(x=>x._id===selectEl.dataset.id)?.vendor)||""; return; }
+  const clean = nv.trim();
+  if(!clean) return;
+  if(!vendors.some(v=>norm(v)===norm(clean))) vendors.push(clean);
+  selectEl.value = clean;
+  const idx = inventory.findIndex(x=>x._id===selectEl.dataset.id);
+  if(idx>-1) inventory[idx].vendor = clean;
+  saveLocal(true);
+}
+
+function addCategoryFlow(selectEl){
+  const nc = prompt("Enter new category name:");
+  if(!nc) { selectEl.value = (inventory.find(x=>x._id===selectEl.dataset.id)?.category)||""; return; }
+  const clean = nc.trim();
+  if(!clean) return;
+  if(!categories.some(c=>norm(c)===norm(clean))) categories.push(clean);
+  selectEl.value = clean;
+  const idx = inventory.findIndex(x=>x._id===selectEl.dataset.id);
+  if(idx>-1) inventory[idx].category = clean;
+  saveLocal(true);
+}
+
+function setDirectLink(id){
+  const idx = inventory.findIndex(x=>x._id===id);
+  if(idx<0) return;
+  const current = inventory[idx].purchaseUrl || "";
+  const url = prompt("Paste a direct product URL for this item (leave blank to clear):", current);
+  if(url === null) return;
+  inventory[idx].purchaseUrl = (url||"").trim();
+  saveLocal(true);
+}
+
+/** Add a blank item row */
+function addNewItem(){
+  const vFilter = $("vendorFilter").value || "all";
+  const cFilter = $("categoryFilter").value || "all";
+
+  const defaultVendor = (vFilter !== "all") ? vFilter : "Amazon";
+  const defaultCategory = (cFilter !== "all") ? cFilter : "Networking";
+
+  // ensure lists contain defaults
+  if(defaultVendor && !vendors.some(v=>norm(v)===norm(defaultVendor))) vendors.push(defaultVendor);
+  if(defaultCategory && !categories.some(c=>norm(c)===norm(defaultCategory))) categories.push(defaultCategory);
+
+  const idSalt = Math.random().toString(36).slice(2,8);
+  const newItem = {
+    _id: `NEW-${idSalt}`,
+    sku: `NEW-SKU-${idSalt.toUpperCase()}`,
+    name: "",
+    category: defaultCategory,
+    vendor: defaultVendor,
+    qty: "",
+    notes: "",
+    lastOrder: "",
+    purchaseUrl: ""
+  };
+
+  inventory.unshift(newItem);
+  saveLocal(true);
+
+  // Focus the new item's name field after render
+  setTimeout(()=>{
+    const nameInput = document.querySelector(`input[data-k="name"][data-id="${newItem._id}"]`);
+    if(nameInput) nameInput.focus();
+  }, 0);
+}
+
+/** Main render with filters */
+function render(){
+  const q = norm($("searchInput").value);
+  const vFilter = $("vendorFilter").value || "all";
+  const cFilter = $("categoryFilter").value || "all";
+  const onHandFilter = $("onHandFilter").value || "all";
+  const low = Number($("lowStockInput").value || 1);
+
+  const body = $("invBody");
+  body.innerHTML = "";
+  let shown = 0;
+
+  const rows = inventory
+    .slice()
+    .sort((a,b)=> norm(a.name).localeCompare(norm(b.name)));
+
+  rows.forEach(it=>{
+    const hay = norm([it.sku,it.name,it.category,it.vendor,it.notes].join(" "));
+    if(q && !hay.includes(q)) return;
+    if(vFilter !== "all" && it.vendor !== vFilter) return;
+    if(cFilter !== "all" && it.category !== cFilter) return;
+
+    const qtyNum = Number(it.qty);
+    const qtyBlank = (it.qty === "" || it.qty === null || typeof it.qty === "undefined" || isNaN(qtyNum));
+
+    if(onHandFilter === "unknown" && !qtyBlank) return;
+    if(onHandFilter === "in" && (qtyBlank || qtyNum <= 0)) return;
+    if(onHandFilter === "out" && (qtyBlank || qtyNum > 0)) return;
+    if(onHandFilter === "low" && (qtyBlank || qtyNum <= 0 || qtyNum > low)) return;
+
+    shown++;
+
+    const purchaseLink = getPurchaseUrl(it);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input data-k="sku" data-id="${it._id}" value="${it.sku||""}" style="width:130px"></td>
+      <td><input data-k="name" data-id="${it._id}" value="${it.name||""}" style="min-width:280px;width:100%"></td>
+      <td>
+        <select data-k="category" data-id="${it._id}" style="width:150px">
+          ${categoryOptions(it.category || "")}
+        </select>
+      </td>
+      <td>
+        <select data-k="vendor" data-id="${it._id}" style="width:150px">
+          ${vendorOptions(it.vendor || "")}
+        </select>
+      </td>
+      <td class="nowrap">
+        <a class="buy" href="${purchaseLink}" target="_blank" rel="noopener">Purchase</a>
+        <button class="tinybtn" data-act="setlink" data-id="${it._id}">Set Link</button>
+      </td>
+      <td class="nowrap">
+        <div class="row" style="gap:6px;">
+          <input data-k="qty" data-id="${it._id}" type="number" value="${(it.qty ?? "")}" style="width:80px">
+          ${stockBadge(it.qty)}
+        </div>
+      </td>
+      <td><input data-k="notes" data-id="${it._id}" value="${it.notes||""}" style="min-width:220px;width:100%"></td>
+      <td><input data-k="lastOrder" data-id="${it._id}" value="${it.lastOrder||""}" style="width:110px"></td>
+      <td class="nowrap">
+        <button data-act="dup" data-id="${it._id}">Duplicate</button>
+        <button data-act="del" data-id="${it._id}" class="bad">Delete</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  $("countLabel").textContent = `${shown} shown / ${inventory.length} total`;
+}
+
+/** Text/number edits */
+$("invBody").addEventListener("input",(e)=>{
+  const t = e.target;
+  const id = t.dataset?.id;
+  const k  = t.dataset?.k;
+  if(!id || !k) return;
+  const idx = inventory.findIndex(x=>x._id===id);
+  if(idx < 0) return;
+
+  if(k==="qty"){
+    inventory[idx][k] = (t.value==="" ? "" : Number(t.value));
+  }else{
+    inventory[idx][k] = t.value;
+  }
+  saveLocal(false);
+});
+
+/** Select changes + add flows */
+$("invBody").addEventListener("change",(e)=>{
+  const t = e.target;
+  const id = t.dataset?.id;
+  const k  = t.dataset?.k;
+  if(!id || !k) return;
+  const idx = inventory.findIndex(x=>x._id===id);
+  if(idx < 0) return;
+
+  if(k==="vendor" && t.value==="__add_vendor__"){ addVendorFlow(t); return; }
+  if(k==="category" && t.value==="__add_category__"){ addCategoryFlow(t); return; }
+
+  inventory[idx][k] = t.value;
+  saveLocal(true);
+});
+
+/** Row actions */
+$("invBody").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button");
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const act = btn.dataset.act;
+  const idx = inventory.findIndex(x=>x._id===id);
+  if(idx<0) return;
+
+  if(act==="del"){
+    inventory.splice(idx,1);
+    saveLocal(true);
+  }
+  if(act==="dup"){
+    const copy = {...inventory[idx], _id: `${inventory[idx]._id}-copy-${Math.random().toString(36).slice(2,6)}`};
+    inventory.splice(idx+1,0,copy);
+    saveLocal(true);
+  }
+  if(act==="setlink"){
+    setDirectLink(id);
+  }
+});
+
+/** Filter listeners */
+$("searchInput").addEventListener("input", render);
+$("vendorFilter").addEventListener("change", render);
+$("categoryFilter").addEventListener("change", render);
+$("onHandFilter").addEventListener("change", render);
+$("lowStockInput").addEventListener("input", render);
+
+$("saveBtn").addEventListener("click", ()=>saveLocal(true));
+
+$("resetBtn").addEventListener("click", ()=>{
+  if(!confirm("Reset ALL quantities/notes/direct links? Items stay.")) return;
+  inventory = inventory.map(it=>({...it, qty:"", notes:"", purchaseUrl:""}));
+  saveLocal(true);
+});
+
+/** Add row listener */
+$("addRowBtn").addEventListener("click", addNewItem);
+
+/** Export CSV */
+$("exportCsvBtn").addEventListener("click", ()=>{
+  const headers = ["SKU","Item","Category","Vendor","PurchaseUrl","Qty","Notes","Last Order"];
+  const lines = [headers.join(",")];
+  inventory.forEach(it=>{
+    const row = [
+      it.sku,it.name,it.category,it.vendor,(it.purchaseUrl||getPurchaseUrl(it)),it.qty,it.notes,it.lastOrder
+    ].map(v=>{
+      const s = (v??"").toString().replaceAll('"','""');
+      return `"${s}"`;
+    });
+    lines.push(row.join(","));
+  });
+  const blob = new Blob([lines.join("\n")], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="inventory.csv"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+/** Download HTML with embedded current data */
+$("downloadHtmlBtn").addEventListener("click", ()=>{
+  const html = document.documentElement.outerHTML;
+  const invMarker = /let inventory = \[[\s\S]*?\];/m;
+  const venMarker = /let vendors = \[[\s\S]*?\];/m;
+  const catMarker = /let categories = \[[\s\S]*?\];/m;
+
+  const injectedInv = `let inventory = ${JSON.stringify(inventory, null, 2)};`;
+  const injectedVen = `let vendors = ${JSON.stringify(vendors, null, 2)};`;
+  const injectedCat = `let categories = ${JSON.stringify(categories, null, 2)};`;
+
+  const out = html
+    .replace(invMarker, injectedInv)
+    .replace(venMarker, injectedVen)
+    .replace(catMarker, injectedCat);
+
+  const blob = new Blob([out], {type:"text/html"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="bhinv_with_data.html"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+/** Theme toggle */
+$("themeToggleBtn").addEventListener("click", toggleTheme);
+
+/** Init */
+ensureIds();
+loadLocal();
+loadTheme();
+buildFilterOptions();
+render();
+</script>
+</body>
+</html>
