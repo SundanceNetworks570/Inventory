@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>In-House Inventory Tracker</title>
   <style>
-    /* ========= THEME VARIABLES ========= */
     :root{
       --bg:#0f1115; --card:#171a21; --muted:#9aa3b2; --text:#e6e9ef; --line:#232839;
       --good:#86efac; --warn:#fde68a; --bad:#fca5a5;
@@ -94,7 +93,6 @@
 
       <button class="primary" id="addRowBtn">+ Add New Item</button>
 
-      <!-- JSON buttons -->
       <button id="downloadJsonBtn">Download JSON</button>
       <button id="importJsonBtn">Import JSON</button>
       <input id="importJsonInput" type="file" accept="application/json" style="display:none" />
@@ -133,10 +131,10 @@
 
 <script>
 /** =========================
- *  EMBEDDED SEED ITEMS
- *  (Baseline if inventory.json missing)
+ *  FULL EMBEDDED SEED ITEMS
  *  ========================= */
 let inventory = [
+  // ===== BH PHOTO ITEMS =====
   { sku: "UBSWULTRA60W", name: "Ubiquiti Ultra 60W 8-Port Gigabit PoE+ Compliant Managed Network Switch", category: "Networking", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-17", purchaseUrl:"" },
   { sku: "MS5060T16V2P", name: "MSI GeForce RTX 5060 Ti 16GB VENTUS 2X PLUS 16G Graphics Card", category: "GPU", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-11-13", purchaseUrl:"" },
   { sku: "MSG56T16V2CP", name: "MSI GeForce RTX 5060 Ti 16GB VENTUS 2X OC PLUS Graphics Card", category: "GPU", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-06-16", purchaseUrl:"" },
@@ -166,19 +164,124 @@ let inventory = [
   { sku: "ASUX8MAPS99T", name: "ASUS 14\" Zenbook DUO UX8406 Multi-Touch Notebook", category: "Laptop", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-02-06", purchaseUrl:"" },
   { sku: "EPPV19II", name: "Epson Perfection V19 II Color Photo and Document Flatbed Scanner", category: "Scanner", vendor:"BH Photo", qty:"", notes:"", lastOrder:"2025-01-29", purchaseUrl:"" },
 
+  // ===== AMAZON ITEMS =====
   { sku: "AMZ-CAT6-FLAT-25FT", name: "Cat6 cable (flat 25 ft)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
   { sku: "AMZ-CAT6-FLAT-50FT", name: "Cat6 cable (flat 50 ft)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
   { sku: "AMZ-CAT6-ROUND-MISC", name: "Cat6 cables (round, small, unspecified size)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
 
-  { sku: "AMZ-UNIFI-POE-WHT", name: "UniFi PoE adapters (white)", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
-  { sku: "AMZ-UNIFI-POE-BLK", name: "UniFi PoE adapters (black)", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
-  { sku: "AMZ-UNIFI-SURGE", name: "UniFi Ethernet surge protectors", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-POE-WHT", name: "Unifi PoE adapters (white)", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-POE-BLK", name: "Unifi PoE adapters (black)", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-SURGE", name: "Unifi Ethernet surge protectors", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
 
   { sku: "AMZ-USB3-A-MICROB-3FT", name: "Cable Matters 3 ft USB 3.0 A to Micro B cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
   { sku: "AMZ-PC-POWER-CABLES", name: "PC power cables (varying lengths)", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
-  { sku: "AMZ-MOUSE-GEN1", name: "Mouse", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" }
-  /* (rest of amazon items unchanged for brevity in seed;
-      your committed inventory.json will override baseline anyway.) */
+  { sku: "AMZ-MOUSE-1", name: "Mouse", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-VGA-CABLE", name: "VGA cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-A-USB-B", name: "USB A to USB B cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-DP-VGA-ADAPT", name: "Moread DP to VGA adapters", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-MINI-DP-DP-ADAPT", name: "Moread Mini Display to DP adapters", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CAT6-RJ45-KEYSTONE", name: "Cat6 RJ45 Keystone Jack", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-HDMI-ADAPT", name: "USB to HDMI adapters", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-C-DP-CABLE", name: "Uni USB-C to DP cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-VGA-CABLE", name: "USB to VGA cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-HDMI-CABLE", name: "USB to HDMI cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-VGA-DVI-CABLE", name: "VGA to DVI cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-HDMI-MISC", name: "USB to HDMI", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-HDMI-VGA", name: "HDMI to VGA", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-C-USB-A-CHG", name: "USB-C to USB-A charging cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-HDMI-4K-6FT-5PK", name: "4K HDMI cable 6 ft (5-pack)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-DP-CABLE", name: "DP cable", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-DP-CABLE-10FT", name: "DP cable (10 ft)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-CHA", name: "USB to CHA cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-VGA-DVI-ADAPT", name: "VGA to DVI adapter", category: "Adapters", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-G4-7M", name: "Unifi G4 Doorbell Pro PoE to USB cable (7m)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-HDMI-MISC", name: "HDMI cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-A-USB-C-CHG", name: "USB-A to USB-C charging cables", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-CKG2", name: "Unifi Cloud Key Gen 2", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-UDMPRO", name: "Unifi Dream Machine Professional", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-CGMAX", name: "Unifi Cloud Gateway Max", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-G3-FLEX", name: "Unifi G3 Flex", category: "Camera", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-60GHZ", name: "Unifi 60 GHz Gigabit+ Wireless Bridge Kit", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-NSTATION", name: "Unifi Anno Station AC Loco", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-NANOBEAM", name: "Unifi Nano Beam 5AC", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-RJ45-COUPLER-3PK", name: "Allsmartlife Cat6 RJ45 Jack In-Line Coupler (3-pack, blue)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-COAX-GENDER-11PK", name: "VCE 3 Coaxial Gender Changer (11-pack)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-COAX-GENDER-16PK", name: "Coax Gender Changers (16-pack)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-DUCT-TAPE", name: "Duct Tape Rolls", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-KEYSTONE-SURFACE-3PK", name: "2-Port Keystone Jack Surface Mounts (3-pack)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ETH-WALL-PLATES", name: "Ethernet Wall Mount Plates", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-UNIFI-24-POE", name: "Unifi 24 PoE", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-LITE-16-POE", name: "Unifi Lite 16 PoE", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-LITE-8-POE", name: "Unifi Lite 8 PoE", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-NETGEAR-16G", name: "Netgear 16-Port Gigabit Ethernet Unmanaged Switch", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-NETGEAR-8G-POE", name: "Netgear 8-Port Gigabit Ethernet PoE+ Unmanaged Switch", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-NETGEAR-8G", name: "Netgear 8-Port Gigabit Ethernet Unmanaged Switch", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ZYXEL-SWITCH", name: "Zyxel Ethernet Switch", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-SONICWALL-TZ270", name: "SonicWall TZ270", category: "Security", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CAT6-100FT-BOX", name: "Cat6 (100 ft, box)", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-CP-LCD-UPS", name: "CyberPower Intelligent LCD UPS", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CP-360W-BBU", name: "CyberPower 360W Battery Backup with Surge Protection", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-12OUT-USB-PS", name: "Testei 12-Outlet Power Strip with 4 USB Ports", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-5OUT-3USB-2PK", name: "Addtam 5-Outlet + 3 USB Surge Protector (2-pack)", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-TESSA-15W-PS", name: "Tessa’s Power Strip 15W", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-C-DOCK", name: "Mediagear USB-C PD Universal Dock", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-ARRIS-SB31", name: "Arris Surfboard DOCSIS 3.1 Cable Modem", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-UNIFI-CABLE-INTERNET", name: "Unifi Cable Internet", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-RJ45-JEWELS-200", name: "Cat6 RJ45 Jewels (200 ct, Cable Matters)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-COAX-STAPLES-200", name: "Gardner Bender 1/4” Coaxial Cable Staples (200 ct)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-TOGGLE-BOLTS-50", name: "Cully 3/16 3” Toggle Bolts (50 ct)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CABLE-STAPLES-400", name: "Buchanan Cable Staples (1/2” x 1 3/16”, 400 ct)", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-5V2A-ADAPTER", name: "5V2A Power Adapter Supply", category: "Power", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-LOGI-C920X", name: "Logitech C920x Pro HD Webcam", category: "Audio/Video", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-JOUNIVO-MICS", name: "Jounivo Microphones", category: "Audio/Video", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-48PORT-PATCH-2U", name: "Cable Matters RJ45 110 Type 48-Port Cat6 2U Patch Panel", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-POOL-HOUSE-BOXES", name: "Serenite Pool House Boxes", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-48PORT-KEYSTONE-2U", name: "Cable Matters 2U 48-Port Keystone Patch Panel", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-CABLE-COVERS", name: "Cable Covers", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-SIP-T57W", name: "Prime Business Phone SIP-T57W", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB2-KIT", name: "Universal USB 2.0 Cable Kit", category: "Cabling", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-D12-MTX-ANT", name: "D12 MTX Pick Antenna Assembly", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-USB-HUB-10PORT", name: "USB Hub with Individual Power (10 USB 3.0 Ports + 1 Charging Port)", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-OEM-KEYBOARDS", name: "Generic OEM Keyboards", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-MOUSE-2", name: "Mouse", category: "Peripherals", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-BROTHER-TN450", name: "Brother TN450", category: "Printing", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-SEAGATE-CHEETAH-15K7", name: "Seagate Cheetah 15k.7", category: "Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-KINGSTON-NV3-1TB", name: "Kingston NV3 1 TB PCIe 4.0 NVMe M.2", category: "Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-SP-A55-1TB", name: "SP A55 1 TB SSD", category: "Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-AX900-USB-DONGLE", name: "AX900 Wi-Fi 6 USB Dongle", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-USB-FLASH-64GB", name: "USB Flash Drives 64 GB", category: "Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-TPLINK-T3U", name: "TP-Link AC1300 Archer T3U Wireless USB Adapter", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-AC600-BT-WIFI", name: "BT + Wi-Fi 5 AC600 Driver-Free Dongle", category: "Networking", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+
+  { sku: "AMZ-MINI-PRINTER", name: "Mini Portable Printer", category: "Printing", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-DISINFECT-SPRAY", name: "Electronics Disinfectant Spray", category: "Hardware & Install", vendor:"Amazon", qty:"", notes:"consumable", lastOrder:"", purchaseUrl:"" },
+  { sku: "AMZ-WD-PASSPORT-6TB", name: "WD My Passport 6 TB Portable HDD", category: "Storage", vendor:"Amazon", qty:"", notes:"", lastOrder:"", purchaseUrl:"" }
 ];
 
 /** ===== Lists (seed) ===== */
@@ -189,11 +292,10 @@ let categories = [
   "Hardware & Install","Printing","Security","Audio/Video"
 ];
 
-/** ===== Storage keys ===== */
-const STORAGE_KEY_ITEMS      = "bhinv_items_v8";
-const STORAGE_KEY_VENDORS    = "bhinv_vendors_v8";
-const STORAGE_KEY_CATEGORIES = "bhinv_categories_v8";
-const STORAGE_KEY_THEME      = "bhinv_theme_v8";
+const STORAGE_KEY_ITEMS      = "bhinv_items_v9";
+const STORAGE_KEY_VENDORS    = "bhinv_vendors_v9";
+const STORAGE_KEY_CATEGORIES = "bhinv_categories_v9";
+const STORAGE_KEY_THEME      = "bhinv_theme_v9";
 
 const $ = (id)=>document.getElementById(id);
 const norm = (s)=> (s||"").toString().toLowerCase().trim();
@@ -210,12 +312,10 @@ function ensureIds(){
 /** Merge helper (repo items take precedence) */
 function mergeRepoData(repo){
   if(!repo) return;
-
   const repoItems = Array.isArray(repo.items) ? repo.items : [];
   const repoVendors = Array.isArray(repo.vendors) ? repo.vendors : [];
   const repoCategories = Array.isArray(repo.categories) ? repo.categories : [];
 
-  // 1) Overwrite lists from repo, but also union with seed
   repoVendors.forEach(v=>{
     if(v && !vendors.some(x=>norm(x)===norm(v))) vendors.push(v);
   });
@@ -223,7 +323,6 @@ function mergeRepoData(repo){
     if(c && !categories.some(x=>norm(x)===norm(c))) categories.push(c);
   });
 
-  // 2) Items: repo is baseline
   if(repoItems.length){
     const seedBySku = new Map(inventory.map(x=>[norm(x.sku), x]));
     const merged = repoItems.map(ri=>{
@@ -231,7 +330,6 @@ function mergeRepoData(repo){
       return {...seed, ...ri};
     });
 
-    // 3) Add any seed items missing from repo by SKU
     const repoSkuSet = new Set(merged.map(x=>norm(x.sku)));
     inventory.forEach(si=>{
       if(si.sku && !repoSkuSet.has(norm(si.sku))){
@@ -249,12 +347,10 @@ function loadLocal(){
     const vraw = localStorage.getItem(STORAGE_KEY_VENDORS);
     if(vraw){ vendors = JSON.parse(vraw) || vendors; }
   }catch(e){}
-
   try{
     const craw = localStorage.getItem(STORAGE_KEY_CATEGORIES);
     if(craw){ categories = JSON.parse(craw) || categories; }
   }catch(e){}
-
   try{
     const raw = localStorage.getItem(STORAGE_KEY_ITEMS);
     if(raw){
@@ -281,9 +377,7 @@ async function loadRepoJson(){
     if(!res.ok) throw new Error("No inventory.json");
     const repo = await res.json();
     mergeRepoData(repo);
-  }catch(e){
-    // no repo json — baseline stays
-  }
+  }catch(e){}
 }
 
 /** Theme */
@@ -624,13 +718,9 @@ $("downloadHtmlBtn").addEventListener("click", ()=>{
   URL.revokeObjectURL(url);
 });
 
-/** ===== JSON EXPORT ===== */
+/** JSON EXPORT */
 $("downloadJsonBtn").addEventListener("click", ()=>{
-  const payload = {
-    vendors,
-    categories,
-    items: inventory
-  };
+  const payload = { vendors, categories, items: inventory };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -638,7 +728,7 @@ $("downloadJsonBtn").addEventListener("click", ()=>{
   URL.revokeObjectURL(url);
 });
 
-/** ===== JSON IMPORT ===== */
+/** JSON IMPORT */
 $("importJsonBtn").addEventListener("click", ()=> $("importJsonInput").click());
 $("importJsonInput").addEventListener("change",(e)=>{
   const file = e.target.files?.[0];
@@ -671,10 +761,10 @@ $("themeToggleBtn").addEventListener("click", toggleTheme);
 
 /** Init (async) */
 (async function init(){
-  ensureIds();          // seed IDs
-  await loadRepoJson(); // repo baseline
-  ensureIds();          // ensure repo items have IDs
-  loadLocal();          // safety net on top
+  ensureIds();          
+  await loadRepoJson(); 
+  ensureIds();          
+  loadLocal();          
   loadTheme();
   buildFilterOptions();
   render();
