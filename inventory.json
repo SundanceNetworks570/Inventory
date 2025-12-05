@@ -1,0 +1,9 @@
+{
+  "vendors": ["BH Photo","Amazon","Microsoft","CDW","New Egg","Tiger Direct","D and H"],
+  "categories": [
+    "Networking","GPU","Camera","Laptop","Scanner",
+    "Cabling","Adapters","Peripherals","Power","Storage",
+    "Hardware & Install","Printing","Security","Audio/Video"
+  ],
+  "items": []
+}
