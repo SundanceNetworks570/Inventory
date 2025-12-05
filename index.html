@@ -136,7 +136,7 @@
 const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby0EEK3r06iijuZAqEewdXcIEqA096LW5HjQ-Yvn6NfyscCHhzX56CwceBhmUGDAPnA/exec";
 
 /** ============ SEED (fallback only) ============ */
-let inventory = []; // will be overwritten by cloud on load
+let inventory = []; // cloud overwrites on load
 let vendors = ["BH Photo","Amazon","Microsoft","CDW","New Egg","Tiger Direct","D and H"];
 let categories = [
   "Networking","GPU","Camera","Laptop","Scanner",
@@ -144,10 +144,10 @@ let categories = [
   "Hardware & Install","Printing","Security","Audio/Video"
 ];
 
-const STORAGE_KEY_ITEMS      = "bhinv_items_cloud_v1";
-const STORAGE_KEY_VENDORS    = "bhinv_vendors_cloud_v1";
-const STORAGE_KEY_CATEGORIES = "bhinv_categories_cloud_v1";
-const STORAGE_KEY_THEME      = "bhinv_theme_cloud_v1";
+const STORAGE_KEY_ITEMS      = "bhinv_items_cloud_v2";
+const STORAGE_KEY_VENDORS    = "bhinv_vendors_cloud_v2";
+const STORAGE_KEY_CATEGORIES = "bhinv_categories_cloud_v2";
+const STORAGE_KEY_THEME      = "bhinv_theme_cloud_v2";
 
 const $ = (id)=>document.getElementById(id);
 const norm = (s)=> (s||"").toString().toLowerCase().trim();
@@ -180,9 +180,7 @@ function loadLocalFallback(){
   }catch(e){}
   try{
     const raw = localStorage.getItem(STORAGE_KEY_ITEMS);
-    if(raw){
-      inventory = JSON.parse(raw)||inventory;
-    }
+    if(raw){ inventory = JSON.parse(raw)||inventory; }
   }catch(e){}
 }
 
@@ -193,52 +191,73 @@ function saveLocal(renderAfter=false){
   if(renderAfter) { buildFilterOptions(); render(); }
 }
 
-/** ===== Cloud load/save ===== */
-async function loadFromSheet(){
-  try{
+/** ===== CLOUD: JSONP GET (CORS-safe) ===== */
+function loadFromSheet(){
+  return new Promise((resolve)=>{
     setStatus("Loading cloud…");
-    const res = await fetch(SHEET_API_URL, {cache:"no-store"});
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error || "Cloud load failed");
 
-    inventory = Array.isArray(data.items) ? data.items : [];
-    vendors = Array.isArray(data.vendors) && data.vendors.length ? data.vendors : vendors;
-    categories = Array.isArray(data.categories) && data.categories.length ? data.categories : categories;
+    const cbName = "sheetCallback_" + Math.random().toString(36).slice(2);
+    window[cbName] = (data)=>{
+      try{
+        if(!data.ok) throw new Error(data.error || "Cloud load failed");
 
-    ensureIds();
-    saveLocal(false); // keep offline copy
-    setStatus("Saved to cloud ✅", "ok");
-    return true;
-  }catch(err){
-    console.warn(err);
-    setStatus("Cloud offline — using local", "warn");
-    loadLocalFallback();
-    ensureIds();
-    return false;
-  }
+        inventory = Array.isArray(data.items) ? data.items : [];
+        vendors = (Array.isArray(data.vendors) && data.vendors.length) ? data.vendors : vendors;
+        categories = (Array.isArray(data.categories) && data.categories.length) ? data.categories : categories;
+
+        ensureIds();
+        saveLocal(false);
+        setStatus("Saved to cloud ✅", "ok");
+        resolve(true);
+      }catch(err){
+        console.warn(err);
+        setStatus("Cloud offline — using local", "warn");
+        loadLocalFallback();
+        ensureIds();
+        resolve(false);
+      }finally{
+        delete window[cbName];
+        script.remove();
+      }
+    };
+
+    const script = document.createElement("script");
+    script.src = `${SHEET_API_URL}?callback=${cbName}&_=${Date.now()}`;
+    script.onerror = ()=>{
+      setStatus("Cloud offline — using local", "warn");
+      loadLocalFallback();
+      ensureIds();
+      resolve(false);
+      delete window[cbName];
+      script.remove();
+    };
+    document.body.appendChild(script);
+  });
 }
 
+/** ===== CLOUD: POST with no-cors ===== */
 async function saveToSheet(){
   try{
     setStatus("Saving…");
     const payload = { items: inventory, vendors, categories };
-    const res = await fetch(SHEET_API_URL, {
+
+    await fetch(SHEET_API_URL, {
       method:"POST",
+      mode:"no-cors",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(payload)
     });
-    const out = await res.json();
-    if(!out.ok) throw new Error(out.error || "Cloud save failed");
-    setStatus("Saved to cloud ✅", "ok");
+
+    setStatus("Saved to cloud ✅","ok");
     return true;
   }catch(err){
     console.warn(err);
-    setStatus("Cloud save failed — local only", "bad");
+    setStatus("Cloud save failed — local only","bad");
     return false;
   }
 }
 
-/** Debounced autosave (prevents hammering sheet) */
+/** Debounced autosave */
 let saveTimer = null;
 function scheduleCloudSave(){
   clearTimeout(saveTimer);
@@ -266,7 +285,7 @@ function updateThemeButton(){
   $("themeToggleBtn").textContent = cur === "dark" ? "🌙 Dark" : "☀️ Light";
 }
 
-/** ===== Auto purchase URL builder ===== */
+/** ===== Purchase URL builder ===== */
 function getPurchaseUrl(it){
   if(it.purchaseUrl && it.purchaseUrl.trim()) return it.purchaseUrl.trim();
   const q = encodeURIComponent(it.sku || it.name || "");
@@ -622,7 +641,7 @@ $("themeToggleBtn").addEventListener("click", toggleTheme);
 /** Init */
 (async function init(){
   loadTheme();
-  await loadFromSheet();     // cloud is now authoritative
+  await loadFromSheet();     // cloud is authoritative
   buildFilterOptions();
   render();
 })();
